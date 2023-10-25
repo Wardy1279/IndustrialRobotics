@@ -3,6 +3,8 @@ clf
 clear all
 
 hold on;
-[robot1, robot2] = Environment.CreateEnvironment()
+% Creates environment, returns interactive objects and robots (including
+% grippers)
+[SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
 
-robot2.model.teach();
+URrobot.model.teach();
