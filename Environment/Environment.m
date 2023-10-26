@@ -11,7 +11,7 @@ classdef Environment
             SBrobot = SprayBot(SE3(eul2rotm([0,0,0]), [0.3,0,0.5]).T);
             % robot1.model;
             SBrobot.model.plot([0,0,0,0,0,0], 'joints', 'workspace', [-2 2 -2 2 -0.0001 2]);
-            URrobot = UR10(SE3(eul2rotm([0,0,0]), [-0.3,0,0.5]).T);
+            URrobot = OmronTM5(SE3(eul2rotm([0,0,0]), [-0.3,0,0.5]).T);
             URrobot.model;
 
             %% Create grippers
