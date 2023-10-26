@@ -10,24 +10,52 @@ function [] = Main()
     %% Creates environment, returns interactive objects and robots
     %% (including grippers).
     [SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
-
-    %% SprayBot Starting Position
-    qSprayStart = [-223*pi/180, 0, 0, 0, 0, 0]; % Spray Bot initial Joint Angles.
-    SBrobot.model.animate(qSprayStart); % Render Spray bot at initial joint angels.
     
+    %% SprayBot Starting Position
+    qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , 0]; % Spray Bot initial Joint Angles.
+    SBrobot.model.animate(qSprayStart); % Render Spray bot at initial joint angels.
     %% Render Plane that acts as window pane.
-    [x z] = meshgrid(-1.8:0.2:1.8, 0.5:1.3/18:1.8); % Generate x and z data
-    y = zeros(size(x, 1)); % Initialise array of y values same size and x values.
-    y(:) = 0.46723; % Change all y values to intended plane location.
-    windowPane = surf(x, y, z); % Render window pane surface.
+    [x_surf z_surf] = meshgrid(-1.8:0.2:1.8, 0.5:1.3/18:1.8); % Generate x_surf and z_surf data
+    y_surf = zeros(size(x_surf, 1)); % Initialise array of y_surf values same size and x_surf values.
+    y_surf(:) = 0.46723; % Change all y_surf values to intended plane location.
+    windowPane = surf(x_surf, y_surf, z_surf); % Render window pane surface.
     set(windowPane, 'facealpha', 0.1); % Change Transparency of windowPane.
-
+    
     %% Spray cone (THIS COULD BE A SPRAY FUNCTION SO TAHT THE CONE ONLY GENERATES WHEN THAT FUCNTION IS CALLED).
-    sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T; % Transform of End Effector.
+    q0 = zeros(1,6);
+    qNozzle = [-101 * pi/180, 43.2 * pi/180, -28.8 * pi/180, -7.2 * pi/180, 0, 0];
+    neutralSprayBotTr = SBrobot.model.fkine(q0).T; % Neutral Spray Bot Position
+    sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T; % Final Transform of End Effector.
     SBrobot.model.delay = 0;
-    startSpray = sprayBotEndEffectorTr(1:3,4);  % Starting Point location of Spray Cone.
-    [X, Y, Z] = cylinder([0, 0.2], 30); % Define starting end ending radius of Spray Cone.
-    Z = Z * 0.5; % Define Length of Spray Cone.
+    
+    % SBrobot.model.teach(qSprayStart);
+    
+    initialSprayBotToNozzle = jtraj(q0, qNozzle, 200);
+    for i = 1:length(initialSprayBotToNozzle)
+        SBrobot.model.animate(initialSprayBotToNozzle(i,:));
+        SBGripper1.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
+        SBGripper1.model.animate([0,0]);
+        SBGripper2.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
+        SBGripper2.model.animate([0,0]);
+        pause(0);
+    end
+    
+    nozzleToSprayPosition = jtraj(qNozzle, qSprayStart, 200);
+    for i = 1:length(nozzleToSprayPosition)
+        SBrobot.model.animate(nozzleToSprayPosition(i,:));
+        SBGripper1.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
+        SBGripper1.model.animate([0,0]);
+        SBGripper2.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
+        SBGripper2.model.animate([0,0]);
+        nozzleObj.nozzleModel{1}.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
+        nozzleObj.nozzleModel{1}.animate(0);
+        pause(0);
+    end
+   
+    nozzleTransform = nozzleObj.nozzleModel{1}.fkine(0).T;  % Nozzle Transform
+    startSpray = nozzleTransform(1:3,4); % Starting point of spray cone.
+    [X, Y, Z] = cylinder([0, 0.2], 100); % Define starting end ending radius of Spray Cone.
+    Z = Z * 0.75; % Define Length of Spray Cone.
     updatedSprayConePoints = [sprayBotEndEffectorTr * [X(:), Y(:), Z(:), ones(numel(X), 1)]']';
     sprayConePointsSize = size(X);
     sprayCone_h = surf(reshape(updatedSprayConePoints(:,1), sprayConePointsSize) ... % Render Spray Cone.
@@ -36,15 +64,94 @@ function [] = Main()
     set(sprayCone_h, 'FaceAlpha', 0.4); % Change transparency of Spray Cone.
     view(3);
     
-
     %% Intersection Point Storage
-    for i = 1 : size(updatedSprayConePoints, 3) - 1
-        for faceIndex = 1:size()
+    % centerOfBaseOfCone = sprayBotEndEffectorTr(1:3, 4) + 0.5 * sprayBotEndEffectorTr(1:3,3);
+    % vectorFromBaseToApexOfCone = centerOfBaseOfCone - startSpray;
+    % unitVectorOfCone = vectorFromBaseToApexOfCone/norm(vectorFromBaseToApexOfCone);
+    % plot3([startSpray(1), centerOfBaseOfCone(1)],[startSpray(2), centerOfBaseOfCone(2)],[startSpray(3), centerOfBaseOfCone(3)], "b--");
+    % coneHeight = 0.5;
+    % coneRadius = 0.2;
+    % theta = deg2rad(23.578);
+    % 
+    % x_apex = startSpray(1,1);
+    % y_apex = startSpray(2,1);
+    % z_apex = startSpray(3,1);
+    % 
+    % for i = 1:length(x_surf)
+    %     % 3D values of point.
+    %     for j = 1:length(x_surf)
+    %         % Vect
+    %         vectorFromApexToPoint = [x_surf(i,j) - x_apex, y_surf(i,j) - y_apex, z_surf(i,j) - z_apex];
+    %         unitVectorFromApexToPoint = vectorFromApexToPoint/norm(vectorFromApexToPoint);
+    %         angleBetweenPointUnitVectorAndConeUnitVector = dot(unitVectorFromApexToPoint, unitVectorOfCone);
+    % 
+    % 
+    %         if abs(angleBetweenPointUnitVectorAndConeUnitVector) <= theta 
+    %             display("point is inside the cone");
+    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "r*");
+    %         else
+    %             display("point is outside the cone");
+    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "y*");
+    %         end
+    %     end
+    % end
+    
+    %% Temporary for demo video
+    intersectionPoints = {[-0.4, 0.4672, 0.7167] ...
+                         ,[-0.2, 0.4672, 0.7167] ...
+                         ,[-0.4, 0.4672, 0.7899] ...
+                         ,[-0.2, 0.4672, 0.7899] ...
+                         ,[-0.4, 0.4672, 0.8611] ...
+                         ,[-0.2, 0.4672, 0.8611] ...
+                         ,[-0.4, 0.4672, 0.9333] ...
+                         ,[-0.2, 0.4672, 0.9333]};
+    
+    for i = 1:length(intersectionPoints)
+        plot3(intersectionPoints{i}(1), intersectionPoints{i}(2), intersectionPoints{i}(3), "r*")
+    end
+    
+    pause(2);
+    delete(sprayCone_h);
 
-        end
+    sprayBotToNeutralPath = jtraj(qSprayStart, q0, 200);
+
+    for i = 1:length(sprayBotToNeutralPath)
+        SBrobot.model.animate(sprayBotToNeutralPath(i, :));
+        SBGripper1.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
+        SBGripper1.model.animate([0,0]);
+        SBGripper2.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
+        SBGripper2.model.animate([0,0]);
+        nozzleObj.nozzleModel{1}.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
+        nozzleObj.nozzleModel{1}.animate(0);
+        pause(0);
     end
 
     %% Wiping of Intersection Points
+    
+    % for i = 1:length(plottedBricks)
+    %     armToBrickInitial = jtraj(q0, ur3.model.ikcon(SE3(initialBricks{i}).T * transl(0,0,0.0344) * ...
+    %         troty(pi), q1Guess), 200);
+    %     %% Move Arm to Initial Brick Position
+    %     for j = 1:length(armToBrickInitial)
+    %         ur3.model.animate(armToBrickInitial(j,:));
+    %         pause(0)
+    %     end
+    %     q0 = armToBrickInitial(end, :);
+    %     %% Move Arm and Brick to Final Brick Position
+    %     initialBrickToFinalBrick = jtraj(q0, ur3.model.ikcon(SE3(finalBricks{i}).T * transl(0,0,0.0344) * troty(pi), q2Guess), 200);
+    %     for j = 1:length(initialBrickToFinalBrick)
+    %         ur3.model.animate(initialBrickToFinalBrick(j,:));
+    %         endEffectorTr = ur3.model.fkine(initialBrickToFinalBrick(j,:)).T;
+    %         disp(endEffectorTr);
+    %         newBrickVertices = [brickVertices{i},ones(size(brickVertices{i},1),1)] * SE3(-initialBricks{i}).T' * endEffectorTr';
+    %         set(plottedBricks{i}, "Vertices", newBrickVertices(:,1:3));
+    %         drawnow();
+    %         pause(0)
+    %     end
+    %     q0 = initialBrickToFinalBrick(end, :);
+    %     disp(floor(i/9 * 100) + "% of the Wall has been Assembled.");
+    % end
+
 
     % qlims = URrobot.model.qlim(:,:);
     % stepRads = deg2rad(60);
