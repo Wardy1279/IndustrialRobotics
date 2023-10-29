@@ -6,10 +6,38 @@ function [] = Main()
     clear all
     
     hold on;
+    
+    steps = 100;
+    %% Create UI
+    
+    global isStopped
+    isStopped = false;
+
+    fig = uifigure;
+    g = uigridlayout(fig,[1 3]);
+    g.RowHeight = {'0x'};
+    g.ColumnWidth = {'1x','1x','1x'};
+    estopButton = uibutton(g, ...
+        "Text","Emergency Stop", ...
+        "ButtonPushedFcn", @(src,event) Estop());
+    estopButton.Layout.Row = 2;
+    estopButton.Layout.Column = 2;
+    
+    c = uibutton(g, ...
+        "Text","Resume", ...
+        "ButtonPushedFcn", @(src,event) Resume());
+    c.Layout.Row = 2;
+    c.Layout.Column = 3;
 
     %% Creates environment, returns interactive objects and robots
     %% (including grippers).
     [SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
+    
+    %% Create work area
+    cubePoints = CreateWorkArea(2);
+
+    %% Insert person
+    persons = person(1);
     
     %% SprayBot Starting Position
     qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
@@ -28,31 +56,45 @@ function [] = Main()
     qNozzle = SBrobot.model.ikine(nozzleObj.nozzleModel{1}.base);
 
     neutralSprayBotTr = SBrobot.model.fkine(q0).T; % Neutral Spray Bot Position
-    sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T; % Final Transform of End Effector.
+    sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T % Final Transform of End Effector.
     SBrobot.model.delay = 0;
     
     % SBrobot.model.teach(qSprayStart);
     
-    initialSprayBotToNozzle = jtraj(q0, qNozzle, 200);
+    initialSprayBotToNozzle = jtraj(q0, qNozzle, steps);
     for i = 1:length(initialSprayBotToNozzle)
-        SBrobot.model.animate(initialSprayBotToNozzle(i,:));
-        SBGripper1.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
-        SBGripper1.model.animate([0,0]);
-        SBGripper2.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
-        SBGripper2.model.animate([0,0]);
-        pause(0);
+        if isStopped == false
+            SBrobot.model.animate(initialSprayBotToNozzle(i,:));
+            SBGripper1.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
+            SBGripper1.model.animate([0,0]);
+            SBGripper2.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
+            SBGripper2.model.animate([0,0]);
+            pause(0);
+        else
+            while isStopped == true
+                pause(1)
+                % Damn, penalty time
+            end
+        end
     end
     
-    nozzleToSprayPosition = jtraj(qNozzle, qSprayStart, 200);
+    nozzleToSprayPosition = jtraj(qNozzle, qSprayStart, steps);
     for i = 1:length(nozzleToSprayPosition)
-        SBrobot.model.animate(nozzleToSprayPosition(i,:));
-        SBGripper1.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
-        SBGripper1.model.animate([0,0]);
-        SBGripper2.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
-        SBGripper2.model.animate([0,0]);
-        nozzleObj.nozzleModel{1}.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
-        nozzleObj.nozzleModel{1}.animate(0);
-        pause(0);
+        if isStopped == false
+            SBrobot.model.animate(nozzleToSprayPosition(i,:));
+            SBGripper1.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
+            SBGripper1.model.animate([0,0]);
+            SBGripper2.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
+            SBGripper2.model.animate([0,0]);
+            nozzleObj.nozzleModel{1}.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
+            nozzleObj.nozzleModel{1}.animate(0);
+            pause(0);
+        else
+           while isStopped == true
+                pause(1)
+                % Damn, penalty time
+            end
+        end 
     end
    
     nozzleTransform = nozzleObj.nozzleModel{1}.fkine(0).T;  % Nozzle Transform
@@ -65,9 +107,6 @@ function [] = Main()
                       ,reshape(updatedSprayConePoints(:,2), sprayConePointsSize) ...
                       ,reshape(updatedSprayConePoints(:,3), sprayConePointsSize));
     set(sprayCone_h, 'FaceAlpha', 0.4); % Change transparency of Spray Cone.
-    view(3);
-
-    input('Spraying...')
     
     %% Intersection Point Storage
     % centerOfBaseOfCone = sprayBotEndEffectorTr(1:3, 4) + 0.5 * sprayBotEndEffectorTr(1:3,3);
@@ -118,17 +157,24 @@ function [] = Main()
     pause(2);
     delete(sprayCone_h);
 
-    sprayBotToNeutralPath = jtraj(qSprayStart, q0, 200);
+    sprayBotToNeutralPath = jtraj(qSprayStart, q0, steps);
 
     for i = 1:length(sprayBotToNeutralPath)
-        SBrobot.model.animate(sprayBotToNeutralPath(i, :));
-        SBGripper1.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
-        SBGripper1.model.animate([0,0]);
-        SBGripper2.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
-        SBGripper2.model.animate([0,0]);
-        nozzleObj.nozzleModel{1}.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
-        nozzleObj.nozzleModel{1}.animate(0);
-        pause(0);
+        if isStopped == false
+            SBrobot.model.animate(sprayBotToNeutralPath(i, :));
+            SBGripper1.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
+            SBGripper1.model.animate([0,0]);
+            SBGripper2.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
+            SBGripper2.model.animate([0,0]);
+            nozzleObj.nozzleModel{1}.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
+            nozzleObj.nozzleModel{1}.animate(0);
+            pause(0);
+        else
+            while isStopped == true
+                pause(1)
+                % Damn, penalty time
+            end
+        end
     end
 
     %% Wiping of Intersection Points
@@ -197,3 +243,18 @@ function [] = Main()
     input("Press Enter:");
 end
 
+function [] = Estop()
+%ESTOP Summary of this function goes here
+%   Detailed explanation goes here
+display('ESTOP PRESSED');
+global isStopped;
+isStopped = true;
+end
+
+function [] = Resume()
+%ESTOP Summary of this function goes here
+%   Detailed explanation goes here
+display('RESUME PRESSED');
+global isStopped;
+isStopped = false;
+end
