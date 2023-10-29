@@ -8,7 +8,75 @@ function [] = Main()
     hold on;
     
     steps = 100;
-    %% Create UI
+    qLastUR = [0,0,0,0,0,0];
+    qLastSB = [0,0,0,0,0,0];
+
+    global robotSelection
+    robotSelection = 0;
+    %% Creates environment, returns interactive objects and robots
+    %% (including grippers).
+    [SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
+
+    %% Teach UI
+    fig = uifigure;
+    g = uigridlayout(fig,[1 3]);
+    g.RowHeight = {'1x', '0.3x'};
+    g.ColumnWidth = {'1x','1x','1x'};
+    b = uibutton(g, ...
+        "Text","Teach Omron", ...
+        "ButtonPushedFcn", @(src,event) TeachSelection(1));
+    b.Layout.Row = 1;
+    b.Layout.Column = 1;
+    
+    c = uibutton(g, ...
+        "Text","Teach IRB120", ...
+        "ButtonPushedFcn", @(src,event) TeachSelection(2));
+    c.Layout.Row = 1;
+    c.Layout.Column = 2;
+
+    d = uibutton(g, ...
+        "Text","Teach Cartesian", ...
+        "ButtonPushedFcn", @(src,event) TeachSelection(3));
+    d.Layout.Row = 1;
+    d.Layout.Column = 3;
+
+    e = uibutton(g, ...
+        "Text","Exit Teach", ...
+        "ButtonPushedFcn", @(src,event) TeachSelection(4));
+    e.Layout.Row = 2;
+    e.Layout.Column = 3;
+    
+    pause(2);
+    while robotSelection ~= 4
+        pause(1);
+        if robotSelection == 1
+            qLastUR = TeachJoy(URrobot, qLastUR);
+        elseif robotSelection == 2
+            qLastSB = TeachJoy(SBrobot, qLastSB);
+        elseif robotSelection == 3
+            inputRobotSelection = input('Robot Selection (1 = Omron, 2 = IRB120): ');
+            inputX = input('X: ');
+            inputY = input('Y: ');
+            inputZ = input('Z: ');
+            if inputRobotSelection == 1
+                try
+                    qLastUR = URrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1]);
+                    URrobot.model.animate(qLastUR);
+                    disp(URrobot.model.fkine(URrobot.model.getpos()).T);
+                end
+            elseif inputRobotSelection == 2
+                try
+                    qLastSB = SBrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1]);
+                    SBrobot.model.animate(qLastSB);
+                    disp(SBrobot.model.fkine(SBrobot.model.getpos()).T);
+                end
+            end
+            drawnow();
+            robotSelection = 0;
+        end
+    end
+    
+    %% Create Estop UI
     
     global isStopped
     isStopped = false;
@@ -29,15 +97,11 @@ function [] = Main()
     c.Layout.Row = 2;
     c.Layout.Column = 3;
 
-    %% Creates environment, returns interactive objects and robots
-    %% (including grippers).
-    [SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
-    
     %% Create work area
     cubePoints = CreateWorkArea(2);
 
     %% Insert person
-    persons = person(1);
+    % persons = person(1);
     
     %% SprayBot Starting Position
     qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
@@ -50,18 +114,18 @@ function [] = Main()
     set(windowPane, 'facealpha', 0.1); % Change Transparency of windowPane.
     
     %% Spray cone (THIS COULD BE A SPRAY FUNCTION SO TAHT THE CONE ONLY GENERATES WHEN THAT FUCNTION IS CALLED).
-    q0 = zeros(1,6);
+    % q0 = zeros(1,6);
 
     % qNozzle = [-101 * pi/180, 43.2 * pi/180, -28.8 * pi/180, -7.2 * pi/180, 0, 0];
     qNozzle = SBrobot.model.ikine(nozzleObj.nozzleModel{1}.base);
 
-    neutralSprayBotTr = SBrobot.model.fkine(q0).T; % Neutral Spray Bot Position
+    neutralSprayBotTr = SBrobot.model.fkine(qLastSB).T; % Neutral Spray Bot Position
     sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T % Final Transform of End Effector.
     SBrobot.model.delay = 0;
     
     % SBrobot.model.teach(qSprayStart);
     
-    initialSprayBotToNozzle = jtraj(q0, qNozzle, steps);
+    initialSprayBotToNozzle = jtraj(qLastSB, qNozzle, steps);
     for i = 1:length(initialSprayBotToNozzle)
         if isStopped == false
             SBrobot.model.animate(initialSprayBotToNozzle(i,:));
@@ -157,7 +221,7 @@ function [] = Main()
     pause(2);
     delete(sprayCone_h);
 
-    sprayBotToNeutralPath = jtraj(qSprayStart, q0, steps);
+    sprayBotToNeutralPath = jtraj(qSprayStart, qLastSB, steps);
 
     for i = 1:length(sprayBotToNeutralPath)
         if isStopped == false
@@ -257,4 +321,10 @@ function [] = Resume()
 display('RESUME PRESSED');
 global isStopped;
 isStopped = false;
+end
+
+function [] = TeachSelection(selection)
+disp('Pressed button')
+global robotSelection
+robotSelection = selection;
 end
