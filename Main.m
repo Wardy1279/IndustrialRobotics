@@ -12,10 +12,10 @@ function [] = Main()
     [SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
     
     %% SprayBot Starting Position
-    qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , 0]; % Spray Bot initial Joint Angles.
+    qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
     SBrobot.model.animate(qSprayStart); % Render Spray bot at initial joint angels.
     %% Render Plane that acts as window pane.
-    [x_surf z_surf] = meshgrid(-1.8:0.2:1.8, 0.5:1.3/18:1.8); % Generate x_surf and z_surf data
+    [x_surf, z_surf] = meshgrid(-1.8:0.2:1.8, 0.5:1.3/18:1.8); % Generate x_surf and z_surf data
     y_surf = zeros(size(x_surf, 1)); % Initialise array of y_surf values same size and x_surf values.
     y_surf(:) = 0.46723; % Change all y_surf values to intended plane location.
     windowPane = surf(x_surf, y_surf, z_surf); % Render window pane surface.
@@ -23,7 +23,10 @@ function [] = Main()
     
     %% Spray cone (THIS COULD BE A SPRAY FUNCTION SO TAHT THE CONE ONLY GENERATES WHEN THAT FUCNTION IS CALLED).
     q0 = zeros(1,6);
-    qNozzle = [-101 * pi/180, 43.2 * pi/180, -28.8 * pi/180, -7.2 * pi/180, 0, 0];
+
+    % qNozzle = [-101 * pi/180, 43.2 * pi/180, -28.8 * pi/180, -7.2 * pi/180, 0, 0];
+    qNozzle = SBrobot.model.ikine(nozzleObj.nozzleModel{1}.base);
+
     neutralSprayBotTr = SBrobot.model.fkine(q0).T; % Neutral Spray Bot Position
     sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T; % Final Transform of End Effector.
     SBrobot.model.delay = 0;
@@ -63,6 +66,8 @@ function [] = Main()
                       ,reshape(updatedSprayConePoints(:,3), sprayConePointsSize));
     set(sprayCone_h, 'FaceAlpha', 0.4); % Change transparency of Spray Cone.
     view(3);
+
+    input('Spraying...')
     
     %% Intersection Point Storage
     % centerOfBaseOfCone = sprayBotEndEffectorTr(1:3, 4) + 0.5 * sprayBotEndEffectorTr(1:3,3);
