@@ -98,7 +98,7 @@ function [] = Main()
     c.Layout.Column = 3;
 
     %% Create work area
-    cubePoints = CreateWorkArea(2);
+    % cubePoints = CreateWorkArea(2);
 
     %% Insert person
     % persons = person(1);
@@ -196,33 +196,33 @@ function [] = Main()
     % 
     %         if abs(angleBetweenPointUnitVectorAndConeUnitVector) <= theta 
     %             display("point is inside the cone");
-    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "r*");
+    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "y*");
     %         else
     %             display("point is outside the cone");
-    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "y*");
+    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "r*");
     %         end
     %     end
     % end
     
     %% Temporary for demo video
-    intersectionPoints = {[-0.4, 0.4672, 0.7167] ...
-                         ,[-0.2, 0.4672, 0.7167] ...
-                         ,[-0.4, 0.4672, 0.7899] ...
-                         ,[-0.2, 0.4672, 0.7899] ...
-                         ,[-0.4, 0.4672, 0.8611] ...
-                         ,[-0.2, 0.4672, 0.8611] ...
-                         ,[-0.4, 0.4672, 0.9333] ...
-                         ,[-0.2, 0.4672, 0.9333]};
-    
+    intersectionPoints = {[-0.4, 0.4672, 0.9333] ...
+                         ,[-0.2, 0.4672, 0.9333] ...
+                         ,[-0.4, 0.4672, 1.0056] ...
+                         ,[-0.2, 0.4672, 1.0056] ...
+                         ,[-0.4, 0.4672, 1.0778] ...
+                         ,[-0.2, 0.4672, 1.0778] ...
+                         ,[-0.4, 0.4672, 1.15] ...
+                         ,[-0.2, 0.4672, 1.15]};
+
     for i = 1:length(intersectionPoints)
-        plot3(intersectionPoints{i}(1), intersectionPoints{i}(2), intersectionPoints{i}(3), "r*")
+        intersectionPoints_h{i} = plot3(intersectionPoints{i}(1), intersectionPoints{i}(2), intersectionPoints{i}(3), "r*");
     end
     
     pause(2);
     delete(sprayCone_h);
 
     sprayBotToNeutralPath = jtraj(qSprayStart, qLastSB, steps);
-
+    
     for i = 1:length(sprayBotToNeutralPath)
         if isStopped == false
             SBrobot.model.animate(sprayBotToNeutralPath(i, :));
@@ -240,70 +240,66 @@ function [] = Main()
             end
         end
     end
+    
+   
 
     %% Wiping of Intersection Points
+    q0 = zeros(1,6);
+    qElbowUp = [0, -pi/3, pi/3, 0, 0, 0];
+    armToElbowUp = jtraj(q0, qElbowUp, steps/2); % Moving arm to an elbow up configuration stops arm from colliding with table.
     
-    % for i = 1:length(plottedBricks)
-    %     armToBrickInitial = jtraj(q0, ur3.model.ikcon(SE3(initialBricks{i}).T * transl(0,0,0.0344) * ...
-    %         troty(pi), q1Guess), 200);
-    %     %% Move Arm to Initial Brick Position
-    %     for j = 1:length(armToBrickInitial)
-    %         ur3.model.animate(armToBrickInitial(j,:));
-    %         pause(0)
-    %     end
-    %     q0 = armToBrickInitial(end, :);
-    %     %% Move Arm and Brick to Final Brick Position
-    %     initialBrickToFinalBrick = jtraj(q0, ur3.model.ikcon(SE3(finalBricks{i}).T * transl(0,0,0.0344) * troty(pi), q2Guess), 200);
-    %     for j = 1:length(initialBrickToFinalBrick)
-    %         ur3.model.animate(initialBrickToFinalBrick(j,:));
-    %         endEffectorTr = ur3.model.fkine(initialBrickToFinalBrick(j,:)).T;
-    %         disp(endEffectorTr);
-    %         newBrickVertices = [brickVertices{i},ones(size(brickVertices{i},1),1)] * SE3(-initialBricks{i}).T' * endEffectorTr';
-    %         set(plottedBricks{i}, "Vertices", newBrickVertices(:,1:3));
-    %         drawnow();
-    %         pause(0)
-    %     end
-    %     q0 = initialBrickToFinalBrick(end, :);
-    %     disp(floor(i/9 * 100) + "% of the Wall has been Assembled.");
-    % end
+    for i = 1:length(armToElbowUp)
+        URrobot.model.animate(armToElbowUp(i,:))
+        URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
+        URGripper1.model.animate([0,0]);
+        URGripper2.model.base = URrobot.model.fkine(armToElbowUp(i,:));
+        URGripper2.model.animate([0,0]);
+        pause(0);
+    end
+    q0 = armToElbowUp(end, :); % Reinitialise Starting Position.
 
+    qWipeGuess = [pi/2, -pi/3, 100*pi/180, -2*pi/3, -pi/2, 0];
+    armToWipe = jtraj(q0, URrobot.model.ikcon(clothObj.clothModel{1}.base.T * transl(0,0,0.3) * troty(pi), qWipeGuess), steps);
+    for i = 1:length(armToWipe)
+        URrobot.model.animate(armToWipe(i,:));
+        URGripper1.model.base = URrobot.model.fkine(armToWipe(i,:));
+        URGripper1.model.animate([0,0]);
+        URGripper2.model.base = URrobot.model.fkine(armToWipe(i,:));
+        URGripper2.model.animate([0,0]);
+        pause(0);
+    end
+    q0 = armToWipe(end,:); % Reinitialise Starting Position.   
 
-    % qlims = URrobot.model.qlim(:,:);
-    % stepRads = deg2rad(60);
-    % pointCloudSize = prod(floor((qlims(1:5,2)-qlims(1:5,1))/stepRads + 1));
-    % pointCloud = zeros(pointCloudSize,3);
-    % counter = 1;
-    % disp("-------------------------------");
-    % tic
-    % disp("Calculating Potential Poses.");
-    % disp("-------------------------------");
-    % 
-    % for q1 = qlims(1,1):stepRads:qlims(1,2)
-    %     for q2 = qlims(2,1):stepRads:qlims(2,2)
-    %         for q3 = qlims(3,1):stepRads:qlims(3,2)
-    %             for q4 = qlims(4,1):stepRads:qlims(4,2)
-    %                 for q5 = qlims(5,1):stepRads:qlims(5,2)       
-    %                     q6 = 0; % q6 does not effect xyz, so we can forgo looping through its joint configs
-    %                     % to save time
-    %                     q = [q1,q2,q3,q4,q5,q6];
-    %                     tr = URrobot.model.fkine(q).T;
-    %                     % Uncomment if you want to see the robot arm cycle through all the poses.
-    %                     % Makes process of calculating about 20x longer.
-    %                     % URrobot.model.animate(q);
-    %                     % pause(0);
-    %                     pointCloud(counter,:) = tr(1:3,4)';
-    %                     counter = counter + 1;
-    %                     if mod(counter/pointCloudSize * 100,1) == 0
-    %                         disp(['After ', num2str(toc),' seconds, completed ',num2str(counter/pointCloudSize * 100),'% of poses']);
-    %                     end
-    %                 end
-    %             end
-    %         end
-    %     end
-    % end
-    %  pointCloudPlot = plot3(pointCloud(:,1),pointCloud(:,2),pointCloud(:,3),'r.');
-    % 
-    % disp("-------------------------------");
+    qIntersectionGuess = [-83*pi/180, -140*pi/180, 2*pi/3, -150*pi/180, -pi/2, 0];
+    for i = 1:length(intersectionPoints)
+        armToIntersectionPoint = jtraj(q0, URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2), qIntersectionGuess), steps);
+        for j = 1:length(armToIntersectionPoint)
+            URrobot.model.animate(armToIntersectionPoint(j,:));
+            URGripper1.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
+            URGripper1.model.animate([0,0]);
+            URGripper2.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
+            URGripper2.model.animate([0,0]);
+            clothObj.clothModel{1}.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
+            clothObj.clothModel{1}.animate(0);
+            pause(0);
+        end
+        delete(intersectionPoints_h{i});
+        q0 = armToIntersectionPoint(end,:);
+    end
+
+    qNeutral = [0, -pi/3, pi/2, -2*pi/3, 0, 0];
+    armToNeutral = jtraj(q0, qNeutral, steps);
+
+    for i = 1:length(armToNeutral)
+        URrobot.model.animate(armToNeutral(i,:));
+        URGripper1.model.base = URrobot.model.fkine(armToNeutral(i,:));
+        URGripper1.model.animate([0,0]);
+        URGripper2.model.base = URrobot.model.fkine(armToNeutral(i,:));
+        URGripper2.model.animate([0,0]);
+        clothObj.clothModel{1}.base = URrobot.model.fkine(armToNeutral(i,:));
+        clothObj.clothModel{1}.animate(0);
+        pause(0);
+    end
     input("Press Enter:");
 end
 
