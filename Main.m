@@ -8,76 +8,17 @@ function [] = Main()
     hold on;
     
     steps = 100;
-    qLastUR = [0,0,0,0,0,0];
-    qLastSB = [0,0,0,0,0,0];
 
-    global robotSelection
-    robotSelection = 0;
     %% Creates environment, returns interactive objects and robots
     %% (including grippers).
     [SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
 
-    %% Teach UI
-    fig = uifigure;
-    g = uigridlayout(fig,[1 3]);
-    g.RowHeight = {'1x', '0.3x'};
-    g.ColumnWidth = {'1x','1x','1x'};
-    b = uibutton(g, ...
-        "Text","Teach Omron", ...
-        "ButtonPushedFcn", @(src,event) TeachSelection(1));
-    b.Layout.Row = 1;
-    b.Layout.Column = 1;
-    
-    c = uibutton(g, ...
-        "Text","Teach IRB120", ...
-        "ButtonPushedFcn", @(src,event) TeachSelection(2));
-    c.Layout.Row = 1;
-    c.Layout.Column = 2;
-
-    d = uibutton(g, ...
-        "Text","Teach Cartesian", ...
-        "ButtonPushedFcn", @(src,event) TeachSelection(3));
-    d.Layout.Row = 1;
-    d.Layout.Column = 3;
-
-    e = uibutton(g, ...
-        "Text","Exit Teach", ...
-        "ButtonPushedFcn", @(src,event) TeachSelection(4));
-    e.Layout.Row = 2;
-    e.Layout.Column = 3;
-    
-    pause(2);
-    while robotSelection ~= 4
-        pause(1);
-        if robotSelection == 1
-            qLastUR = TeachJoy(URrobot, qLastUR);
-        elseif robotSelection == 2
-            qLastSB = TeachJoy(SBrobot, qLastSB);
-        elseif robotSelection == 3
-            inputRobotSelection = input('Robot Selection (1 = Omron, 2 = IRB120): ');
-            inputX = input('X: ');
-            inputY = input('Y: ');
-            inputZ = input('Z: ');
-            if inputRobotSelection == 1
-                try
-                    qLastUR = URrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1]);
-                    URrobot.model.animate(qLastUR);
-                    disp(URrobot.model.fkine(URrobot.model.getpos()).T);
-                end
-            elseif inputRobotSelection == 2
-                try
-                    qLastSB = SBrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1]);
-                    SBrobot.model.animate(qLastSB);
-                    disp(SBrobot.model.fkine(SBrobot.model.getpos()).T);
-                end
-            end
-            drawnow();
-            robotSelection = 0;
-        end
-    end
+    [qLastUR, qLastSB] = Teach(URrobot, SBrobot);
     
     %% Create Estop UI
-    
+    % There were some serious scoping issues regarding asynchronously
+    % stopping the robot, The estop ui must be created here to address this
+
     global isStopped
     isStopped = false;
 
@@ -87,13 +28,13 @@ function [] = Main()
     g.ColumnWidth = {'1x','1x','1x'};
     estopButton = uibutton(g, ...
         "Text","Emergency Stop", ...
-        "ButtonPushedFcn", @(src,event) Estop());
+        "ButtonPushedFcn", @(src,event) EStopCallback(1));
     estopButton.Layout.Row = 2;
     estopButton.Layout.Column = 2;
-    
+
     c = uibutton(g, ...
         "Text","Resume", ...
-        "ButtonPushedFcn", @(src,event) Resume());
+        "ButtonPushedFcn", @(src,event) EStopCallback(2));
     c.Layout.Row = 2;
     c.Layout.Column = 3;
 
@@ -104,8 +45,8 @@ function [] = Main()
     % persons = person(1);
     
     %% SprayBot Starting Position
-    qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
-    SBrobot.model.animate(qSprayStart); % Render Spray bot at initial joint angels.
+    % qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
+    % SBrobot.model.animate(qSprayStart); % Render Spray bot at initial joint angels.
     %% Render Plane that acts as window pane.
     [x_surf, z_surf] = meshgrid(-1.8:0.2:1.8, 0.5:1.3/18:1.8); % Generate x_surf and z_surf data
     y_surf = zeros(size(x_surf, 1)); % Initialise array of y_surf values same size and x_surf values.
@@ -113,17 +54,53 @@ function [] = Main()
     windowPane = surf(x_surf, y_surf, z_surf); % Render window pane surface.
     set(windowPane, 'facealpha', 0.1); % Change Transparency of windowPane.
     
-    %% Spray cone (THIS COULD BE A SPRAY FUNCTION SO TAHT THE CONE ONLY GENERATES WHEN THAT FUCNTION IS CALLED).
-    % q0 = zeros(1,6);
+    %% Moving Wiping robot out of the way
+    max_angle = 2*pi;
+    min_angle = -2*pi;
+    % % Convert q to within range -2*pi<q<2*pi
+    for i = 1:numel(qLastUR)
+        while qLastUR(i) < min_angle
+            qLastUR(i) = qLastUR(i) + 2 * pi;
+        end
+        while qLastUR(i) > max_angle
+            qLastUR(i) = qLastUR(i) - 2 * pi;
+        end
+    end
 
-    % qNozzle = [-101 * pi/180, 43.2 * pi/180, -28.8 * pi/180, -7.2 * pi/180, 0, 0];
+    for i = 1:numel(qLastSB)
+        while qLastSB(i) < min_angle
+            qLastSB(i) = qLastSB(i) + 2 * pi;
+        end
+        while qLastSB(i) > max_angle
+            qLastSB(i) = qLastSB(i) - 2 * pi;
+        end
+    end
+
+    qInitial = zeros(1,6);
+    armToElbowUp = jtraj(qLastUR, qInitial, steps); % Moving arm to an elbow up configuration stops arm from colliding with table.
+    
+    for i = 1:length(armToElbowUp)
+        if isStopped == false
+            URrobot.model.animate(armToElbowUp(i,:))
+            URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
+            URGripper1.model.animate([0,0]);
+            URGripper2.model.base = URrobot.model.fkine(armToElbowUp(i,:));
+            URGripper2.model.animate([0,0]);
+            pause(0);
+        else
+            while isStopped == true
+                pause(1)
+                % Damn, penalty time
+            end
+        end
+    end
+    %% Spray cone (THIS COULD BE A SPRAY FUNCTION SO TAHT THE CONE ONLY GENERATES WHEN THAT FUCNTION IS CALLED).
     qNozzle = SBrobot.model.ikine(nozzleObj.nozzleModel{1}.base);
+    qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
 
     neutralSprayBotTr = SBrobot.model.fkine(qLastSB).T; % Neutral Spray Bot Position
-    sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T % Final Transform of End Effector.
+    sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T; % Final Transform of End Effector.
     SBrobot.model.delay = 0;
-    
-    % SBrobot.model.teach(qSprayStart);
     
     initialSprayBotToNozzle = jtraj(qLastSB, qNozzle, steps);
     for i = 1:length(initialSprayBotToNozzle)
@@ -244,45 +221,67 @@ function [] = Main()
    
 
     %% Wiping of Intersection Points
-    q0 = zeros(1,6);
+    % q0 = zeros(1,6);
     qElbowUp = [0, -pi/3, pi/3, 0, 0, 0];
-    armToElbowUp = jtraj(q0, qElbowUp, steps/2); % Moving arm to an elbow up configuration stops arm from colliding with table.
+    armToElbowUp = jtraj(qInitial, qElbowUp, steps/2); % Moving arm to an elbow up configuration stops arm from colliding with table.
     
     for i = 1:length(armToElbowUp)
-        URrobot.model.animate(armToElbowUp(i,:))
-        URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
-        URGripper1.model.animate([0,0]);
-        URGripper2.model.base = URrobot.model.fkine(armToElbowUp(i,:));
-        URGripper2.model.animate([0,0]);
-        pause(0);
+        if isStopped == false
+            URrobot.model.animate(armToElbowUp(i,:))
+            URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
+            URGripper1.model.animate([0,0]);
+            URGripper2.model.base = URrobot.model.fkine(armToElbowUp(i,:));
+            URGripper2.model.animate([0,0]);
+            pause(0);
+        else
+            while isStopped == true
+                pause(1)
+                % Damn, penalty time
+            end
+        end
     end
-    q0 = armToElbowUp(end, :); % Reinitialise Starting Position.
 
-    qWipeGuess = [pi/2, -pi/3, 100*pi/180, -2*pi/3, -pi/2, 0];
-    armToWipe = jtraj(q0, URrobot.model.ikcon(clothObj.clothModel{1}.base.T * transl(0,0,0.3) * troty(pi), qWipeGuess), steps);
+    qCloth = URrobot.model.ikine(clothObj.clothModel{1}.base);
+    armToWipe = jtraj(qElbowUp, qCloth, steps);
     for i = 1:length(armToWipe)
-        URrobot.model.animate(armToWipe(i,:));
-        URGripper1.model.base = URrobot.model.fkine(armToWipe(i,:));
-        URGripper1.model.animate([0,0]);
-        URGripper2.model.base = URrobot.model.fkine(armToWipe(i,:));
-        URGripper2.model.animate([0,0]);
-        pause(0);
+        if isStopped == false
+            URrobot.model.animate(armToWipe(i,:));
+            URGripper1.model.base = URrobot.model.fkine(armToWipe(i,:));
+            URGripper1.model.animate([0,0]);
+            URGripper2.model.base = URrobot.model.fkine(armToWipe(i,:));
+            URGripper2.model.animate([0,0]);
+            pause(0);
+        else
+            while isStopped == true
+                pause(1)
+                % Damn, penalty time
+            end
+        end
     end
-    q0 = armToWipe(end,:); % Reinitialise Starting Position.   
 
+    q0 = armToWipe(end,:); % Reinitialise Starting Position.   
     qIntersectionGuess = [-83*pi/180, -140*pi/180, 2*pi/3, -150*pi/180, -pi/2, 0];
+    
     for i = 1:length(intersectionPoints)
         armToIntersectionPoint = jtraj(q0, URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2), qIntersectionGuess), steps);
-        for j = 1:length(armToIntersectionPoint)
-            URrobot.model.animate(armToIntersectionPoint(j,:));
-            URGripper1.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
-            URGripper1.model.animate([0,0]);
-            URGripper2.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
-            URGripper2.model.animate([0,0]);
-            clothObj.clothModel{1}.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
-            clothObj.clothModel{1}.animate(0);
-            pause(0);
-        end
+            
+            for j = 1:length(armToIntersectionPoint)
+                if isStopped == false
+                    URrobot.model.animate(armToIntersectionPoint(j,:));
+                    URGripper1.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
+                    URGripper1.model.animate([0,0]);
+                    URGripper2.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
+                    URGripper2.model.animate([0,0]);
+                    clothObj.clothModel{1}.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
+                    clothObj.clothModel{1}.animate(0);
+                    pause(0);
+                else
+                    while isStopped == true
+                        pause(1)
+                        % Damn, penalty time
+                    end
+                end
+            end
         delete(intersectionPoints_h{i});
         q0 = armToIntersectionPoint(end,:);
     end
@@ -291,36 +290,34 @@ function [] = Main()
     armToNeutral = jtraj(q0, qNeutral, steps);
 
     for i = 1:length(armToNeutral)
-        URrobot.model.animate(armToNeutral(i,:));
-        URGripper1.model.base = URrobot.model.fkine(armToNeutral(i,:));
-        URGripper1.model.animate([0,0]);
-        URGripper2.model.base = URrobot.model.fkine(armToNeutral(i,:));
-        URGripper2.model.animate([0,0]);
-        clothObj.clothModel{1}.base = URrobot.model.fkine(armToNeutral(i,:));
-        clothObj.clothModel{1}.animate(0);
-        pause(0);
+        if isStopped == false
+            URrobot.model.animate(armToNeutral(i,:));
+            URGripper1.model.base = URrobot.model.fkine(armToNeutral(i,:));
+            URGripper1.model.animate([0,0]);
+            URGripper2.model.base = URrobot.model.fkine(armToNeutral(i,:));
+            URGripper2.model.animate([0,0]);
+            clothObj.clothModel{1}.base = URrobot.model.fkine(armToNeutral(i,:));
+            clothObj.clothModel{1}.animate(0);
+            pause(0);
+        else
+            while isStopped == true
+                pause(1)
+                % Damn, penalty time
+            end
+        end
     end
-    input("Press Enter:");
+
+    input("End of Simulation");
 end
 
-function [] = Estop()
-%ESTOP Summary of this function goes here
-%   Detailed explanation goes here
-display('ESTOP PRESSED');
+%% Estop Callback function
+function [] = EStopCallback(selection)
 global isStopped;
-isStopped = true;
+if selection == 1
+    disp('ESTOP PRESSED');
+    isStopped = true;
+else
+    disp('RESUME PRESSED');
+    isStopped = false;
 end
-
-function [] = Resume()
-%ESTOP Summary of this function goes here
-%   Detailed explanation goes here
-display('RESUME PRESSED');
-global isStopped;
-isStopped = false;
-end
-
-function [] = TeachSelection(selection)
-disp('Pressed button')
-global robotSelection
-robotSelection = selection;
 end

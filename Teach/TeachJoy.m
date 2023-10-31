@@ -25,8 +25,8 @@ while( toc < duration)
     % -------------------------------------------------------------
     % YOUR CODE GOES HERE
     % 1 - turn joystick input into an end-effector velocity command
-    Kv = 0.1; % linear velocity gain
-    Kw = 0.5; % angular velocity gain
+    Kv = 0.05; % linear velocity gain
+    Kw = 0.05; % angular velocity gain
     
     vx = Kv*axes(1);
     vy = Kv*axes(2);

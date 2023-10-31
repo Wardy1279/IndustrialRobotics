@@ -10,7 +10,8 @@ classdef Environment
             %% Create robots
             SBrobot = SprayBot(SE3(eul2rotm([0,0,0]), [0.3,0,0.5]).T);
             % robot1.model;
-            SBrobot.model.plot([0,0,0,0,0,0], 'joints', 'workspace', [-2 2 -2 2 -0.0001 2]);
+            % SBrobot.model.plot([0,0,0,0,0,0], 'joints', 'workspace', [-2 2 -2 2 -0.0001 2]);
+            SBrobot.model;
             URrobot = OmronTM5(SE3(eul2rotm([0,0,0]), [-0.3,0,0.5]).T);
             URrobot.model;
 
@@ -44,7 +45,7 @@ classdef Environment
             nozzleObj.nozzleModel{1}.animate(0);
 
             clothObj = Cloth(1);
-            clothObj.clothModel{1}.base = SE3(eul2rotm([0,0,0]), [-0.2,-0.4,0.4]).T;
+            clothObj.clothModel{1}.base = SE3(eul2rotm([0,pi/2,0]), [-0.2,-0.4,0.6]).T;
             clothObj.clothModel{1}.animate(0);
 
             %% Surf concrete
