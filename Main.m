@@ -76,8 +76,8 @@ function [] = Main()
         end
     end
 
-    qInitial = zeros(1,6);
-    armToElbowUp = jtraj(qLastUR, qInitial, steps); % Moving arm to an elbow up configuration stops arm from colliding with table.
+    q0 = zeros(1,6);
+    armToElbowUp = jtraj(qLastUR, q0, steps); % Moving arm to an elbow up configuration stops arm from colliding with table.
     
     for i = 1:length(armToElbowUp)
         if isStopped == false
@@ -150,51 +150,35 @@ function [] = Main()
     set(sprayCone_h, 'FaceAlpha', 0.4); % Change transparency of Spray Cone.
     
     %% Intersection Point Storage
-    % centerOfBaseOfCone = sprayBotEndEffectorTr(1:3, 4) + 0.5 * sprayBotEndEffectorTr(1:3,3);
-    % vectorFromBaseToApexOfCone = centerOfBaseOfCone - startSpray;
-    % unitVectorOfCone = vectorFromBaseToApexOfCone/norm(vectorFromBaseToApexOfCone);
-    % plot3([startSpray(1), centerOfBaseOfCone(1)],[startSpray(2), centerOfBaseOfCone(2)],[startSpray(3), centerOfBaseOfCone(3)], "b--");
-    % coneHeight = 0.5;
-    % coneRadius = 0.2;
-    % theta = deg2rad(23.578);
-    % 
-    % x_apex = startSpray(1,1);
-    % y_apex = startSpray(2,1);
-    % z_apex = startSpray(3,1);
-    % 
-    % for i = 1:length(x_surf)
-    %     % 3D values of point.
-    %     for j = 1:length(x_surf)
-    %         % Vect
-    %         vectorFromApexToPoint = [x_surf(i,j) - x_apex, y_surf(i,j) - y_apex, z_surf(i,j) - z_apex];
-    %         unitVectorFromApexToPoint = vectorFromApexToPoint/norm(vectorFromApexToPoint);
-    %         angleBetweenPointUnitVectorAndConeUnitVector = dot(unitVectorFromApexToPoint, unitVectorOfCone);
-    % 
-    % 
-    %         if abs(angleBetweenPointUnitVectorAndConeUnitVector) <= theta 
-    %             display("point is inside the cone");
-    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "y*");
-    %         else
-    %             display("point is outside the cone");
-    %             plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "r*");
-    %         end
-    %     end
-    % end
+    centerOfConeBase = sprayBotEndEffectorTr(1:3, 4) + 0.5 * sprayBotEndEffectorTr(1:3,3); 
+    vectorFromApexToBaseOfCone = centerOfConeBase - startSpray; % Generate center line of spray cone.
+    unitVectorOfCone = vectorFromApexToBaseOfCone/norm(vectorFromApexToBaseOfCone); % Generate Unit vector of center line.
+    plot3([startSpray(1), centerOfConeBase(1)],[startSpray(2), centerOfConeBase(2)],[startSpray(3), centerOfConeBase(3)], "b--"); % plot center line on figure.
+    thetaOfSprayCone = 23.578;
     
-    %% Temporary for demo video
-    intersectionPoints = {[-0.4, 0.4672, 0.9333] ...
-                         ,[-0.2, 0.4672, 0.9333] ...
-                         ,[-0.4, 0.4672, 1.0056] ...
-                         ,[-0.2, 0.4672, 1.0056] ...
-                         ,[-0.4, 0.4672, 1.0778] ...
-                         ,[-0.2, 0.4672, 1.0778] ...
-                         ,[-0.4, 0.4672, 1.15] ...
-                         ,[-0.2, 0.4672, 1.15]};
-
-    for i = 1:length(intersectionPoints)
-        intersectionPoints_h{i} = plot3(intersectionPoints{i}(1), intersectionPoints{i}(2), intersectionPoints{i}(3), "r*");
+    % Initialising apex point of cone.
+    x_apex = startSpray(1,1); 
+    y_apex = startSpray(2,1);
+    z_apex = startSpray(3,1);
+    
+    intersectionPoints = {}; % Creating variable to store intersection points.
+    for i = 1:length(x_surf)
+        % 3D values of point.
+        for j = 1:length(x_surf)
+            % Vect
+            vectorFromApexToPoint = [x_surf(i,j) - x_apex, y_surf(i,j) - y_apex, z_surf(i,j) - z_apex]; % Calculating vector from spray nozzle to point on plane.
+            unitVectorFromApexToPoint = vectorFromApexToPoint/norm(vectorFromApexToPoint); % unit vector
+            cosTheta = max(min(dot(unitVectorFromApexToPoint,unitVectorOfCone)/(norm(unitVectorFromApexToPoint)*norm(unitVectorOfCone)),1),-1); % Calculating angle between point line and cone center line.
+            thetaInDegrees = real(acosd(cosTheta)); % Converting to degrees
+            
+            if abs(thetaInDegrees) <= thetaOfSprayCone && norm(vectorFromApexToPoint) < 0.75 % Finding if point is within the length and spread of spray cone.
+                % display("point is inside the cone");
+                intersectionPoints{length(intersectionPoints) + 1} = [x_surf(i,j), y_surf(i,j), z_surf(i,j)]; % Storing point location
+                intersectionPoints_h{length(intersectionPoints)} = plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "r*"); % Plotting point on figure.
+            end
+        end
     end
-    
+       
     pause(2);
     delete(sprayCone_h);
 
@@ -221,9 +205,8 @@ function [] = Main()
    
 
     %% Wiping of Intersection Points
-    % q0 = zeros(1,6);
     qElbowUp = [0, -pi/3, pi/3, 0, 0, 0];
-    armToElbowUp = jtraj(qInitial, qElbowUp, steps/2); % Moving arm to an elbow up configuration stops arm from colliding with table.
+    armToElbowUp = jtraj(q0, qElbowUp, steps/2); % Moving arm to an elbow up configuration stops arm from colliding with table.
     
     for i = 1:length(armToElbowUp)
         if isStopped == false
@@ -285,6 +268,7 @@ function [] = Main()
         delete(intersectionPoints_h{i});
         q0 = armToIntersectionPoint(end,:);
     end
+    intersectionPoints = {};
 
     qNeutral = [0, -pi/3, pi/2, -2*pi/3, 0, 0];
     armToNeutral = jtraj(q0, qNeutral, steps);
