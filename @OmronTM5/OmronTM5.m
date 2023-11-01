@@ -36,12 +36,12 @@ function self = OmronTM5(baseTr,useTool,toolFilename)
 
 %% CreateModel
         function CreateModel(self)
-            link(1) = Link('d',0.1452,    'a',0,      'alpha',pi/2,'offset',0,'qlim',[deg2rad(-360),deg2rad(360)]);
-            link(2) = Link('d',0,         'a',-0.329,  'alpha',0,'offset',0,'qlim',[deg2rad(-360),deg2rad(360)]);
+            link(1) = Link('d',0.1452,    'a',0,      'alpha',pi/2,'offset',0,'qlim',[deg2rad(-270),deg2rad(270)]);
+            link(2) = Link('d',0,         'a',-0.329,  'alpha',0,'offset',0,'qlim',[deg2rad(-180),deg2rad(180)]);
             link(3) = Link('d',0,         'a',-0.3115,'alpha',0,'offset',0,'qlim',[deg2rad(-155),deg2rad(155)]);
-            link(4) = Link('d',0.106,     'a',0,      'alpha',pi/2,'offset',0,'qlim',[deg2rad(-360),deg2rad(360)]);
-            link(5) = Link('d',0.106,     'a',0,      'alpha',-pi/2,'offset',0,'qlim',[deg2rad(-360),deg2rad(360)]);
-            link(6) = Link('d',0.1132,     'a',0,      'alpha',0,'offset',0,'qlim',[deg2rad(-360),deg2rad(360)]);           
+            link(4) = Link('d',0.106,     'a',0,      'alpha',pi/2,'offset',0,'qlim',[deg2rad(-180),deg2rad(180)]);
+            link(5) = Link('d',0.106,     'a',0,      'alpha',-pi/2,'offset',0,'qlim',[deg2rad(-180),deg2rad(180)]);
+            link(6) = Link('d',0.1132,     'a',0,      'alpha',0,'offset',0,'qlim',[deg2rad(-270),deg2rad(270)]);           
 
             self.model = SerialLink(link,'name',self.name);            
         end    
