@@ -31,12 +31,12 @@ classdef SprayBot < RobotBaseClass
 
 %% CreateModel
         function CreateModel(self)
-            link(1) = Link('d',0.29,'a',0,'alpha',-pi/2,'qlim',[deg2rad(-360),deg2rad(360)],'offset',0);
-            link(2) = Link('d',0,'a',0.27,'alpha',0,'qlim',[deg2rad(-360),deg2rad(360)],'offset',-pi/3);
-            link(3) = Link('d',0,'a',0.07,'alpha',-pi/2,'qlim',[deg2rad(-360),deg2rad(360)],'offset',0);
-            link(4) = Link('d',0.302,'a',0,'alpha',pi/2,'qlim',[deg2rad(-360),deg2rad(360)],'offset',0);
-            link(5) = Link('d',0,'a',0,'alpha',-pi/2,'qlim',[deg2rad(-360),deg2rad(360)],'offset',-pi/6);
-            link(6) = Link('d',0.072,'a',0,'alpha',0,'qlim',[deg2rad(-360),deg2rad(360)],'offset',0);
+            link(1) = Link('d',0.29,'a',0,'alpha',-pi/2,'qlim',[deg2rad(-165),deg2rad(165)],'offset',0);
+            link(2) = Link('d',0,'a',0.27,'alpha',0,'qlim',[deg2rad(-110),deg2rad(110)],'offset',-pi/3);
+            link(3) = Link('d',0,'a',0.07,'alpha',-pi/2,'qlim',[deg2rad(-110),deg2rad(70)],'offset',0);
+            link(4) = Link('d',0.302,'a',0,'alpha',pi/2,'qlim',[deg2rad(-160),deg2rad(160)],'offset',0);
+            link(5) = Link('d',0,'a',0,'alpha',-pi/2,'qlim',[deg2rad(-120),deg2rad(120)],'offset',-pi/6);
+            link(6) = Link('d',0.072,'a',0,'alpha',0,'qlim',[deg2rad(-242),deg2rad(242)],'offset',0);
 
             self.model = SerialLink(link,'name',self.name);
         end      
