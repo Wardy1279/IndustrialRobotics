@@ -27,6 +27,7 @@ function [isCollision] = UpdateCollisions(persons, cubePoints)
     end
     if size(pointsInside,1) > 0
         isCollision = 1;
+        disp('Light Curtain has detected an object! Halting system');
     else
         isCollision = 0;
     end
