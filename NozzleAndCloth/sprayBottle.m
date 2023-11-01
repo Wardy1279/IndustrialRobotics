@@ -32,7 +32,7 @@ function [intersectionPoints, intersectionPoints_h] = sprayBottle(nozzleObj, spr
             thetaInDegrees = real(acosd(cosTheta)); % Converting to degrees
 
             if abs(thetaInDegrees) <= thetaOfSprayCone && norm(vectorFromApexToPoint) < 0.75 % Finding if point is within the length and spread of spray cone.
-                display("point is inside the cone");
+                % display("point is inside the cone");
                 intersectionPoints{length(intersectionPoints) + 1} = [x_surf(i,j), y_surf(i,j), z_surf(i,j)]; % Storing point location
                 intersectionPoints_h{length(intersectionPoints)} = plot3(x_surf(i,j), y_surf(i,j), z_surf(i,j), "r*"); % Plotting point on figure.
             end

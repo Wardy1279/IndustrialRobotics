@@ -1,4 +1,4 @@
-function [qLastUR, qLastSB] = Teach(URrobot, SBrobot)
+function [qLastUR, qLastSB] = Teach(URrobot, SBrobot, URGripper1, URGripper2, SBGripper1, SBGripper2)
     robotSelection = 0;
     qLastUR = [0,0,0,0,0,0];
     qLastSB = [0,0,0,0,0,0];
@@ -40,9 +40,9 @@ function [qLastUR, qLastSB] = Teach(URrobot, SBrobot)
         % disp(robotSelection);
         
         if robotSelection == 1
-            qLastUR = TeachJoy(URrobot, qLastUR);
+            qLastUR = TeachJoy(URrobot, qLastUR, URGripper1, URGripper2);
         elseif robotSelection == 2
-            qLastSB = TeachJoy(SBrobot, qLastSB);
+            qLastSB = TeachJoy(SBrobot, qLastSB, SBGripper1, SBGripper2);
         elseif robotSelection == 3
             inputRobotSelection = input('Robot Selection (1 = Omron, 2 = IRB120): ');
             inputX = input('X: ');

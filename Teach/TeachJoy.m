@@ -1,4 +1,4 @@
-function [qLast] = TeachJoy(robot, qLast)
+function [qLast] = TeachJoy(robot, qLast, gripper1, gripper2)
 %% setup joystick
 id = 1; % Note: may need to be changed if multiple joysticks present
 joy = vrjoystick(id);
@@ -11,7 +11,7 @@ robot.model.fkine(q);          % Plot robot in initial configuration
 robot.model.delay = 0.001;    % Set smaller delay when animating
 
 duration = 5;  % Set duration of the simulation (seconds)
-dt = 0.3;      % Set time step for simulation (seconds)
+dt = 0.4;      % Set time step for simulation (seconds)
 
 n = 0;  % Initialise step count to zero 
 tic;    % recording simulation start time
@@ -48,6 +48,11 @@ while( toc < duration)
     % -------------------------------------------------------------
     
     % Update plot
+    gripper1.model.base = robot.model.fkine(robot.model.getpos());
+    gripper2.model.base = robot.model.fkine(robot.model.getpos());
+    
+    gripper1.model.animate([0,0]);
+    gripper2.model.animate([0,0]);
     robot.model.animate(q);  
     
     % wait until loop time elapsed
@@ -57,6 +62,24 @@ while( toc < duration)
     while (toc < dt*n); % wait until loop time (dt) has elapsed 
     end
 end
+
+% Define the range -2pi to 2pi
+% min_angle = -2 * pi;
+% max_angle = 2 * pi;
+
+min_angle = -pi;
+max_angle = pi;
+
+% Wrap joint angles within the range
+for i = 1:numel(robot)
+    while robot(i) < min_angle
+        robot(i) = robot(i) + pi;
+    end
+    while robot(i) > max_angle
+        robot(i) = robot(i) - pi;
+    end
+end
+
 qLast = robot.model.getpos();
 end
 

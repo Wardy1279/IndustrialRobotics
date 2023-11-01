@@ -21,7 +21,7 @@ function [] = Main()
     [SBrobot, URrobot, URGripper1, URGripper2, SBGripper1, SBGripper2, nozzleObj, clothObj] = Environment.CreateEnvironment();
     
     if settingsTeach == true
-        [qLastUR, qLastSB] = Teach(URrobot, SBrobot);
+        [qLastUR, qLastSB] = Teach(URrobot, SBrobot, URGripper1, URGripper2, SBGripper2, SBGripper2);
     else
         qLastUR = zeros(1,6);
         qLastSB = zeros(1,6);
