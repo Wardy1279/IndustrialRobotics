@@ -11,10 +11,10 @@ function [] = Main()
     
     %% OPTIONAL SETTINGS
     % Turn on light cutain demonstration
-    settingsLightCurtainEnable = true;
+    settingsLightCurtainEnable = false;
 
     % Teach UI
-    settingsTeach = false;
+    settingsTeach = true;
 
     %% Creates environment, returns interactive objects and robots
     %% (including grippers).
@@ -158,7 +158,7 @@ function [] = Main()
         end 
     end
     
-    [intersectionPoints, intersectionPoints_h] = sprayBottle(nozzleObj, sprayBotEndEffectorTr);
+    [intersectionPoints, intersectionPoints_h] = sprayBottle(nozzleObj, sprayBotEndEffectorTr, x_surf, y_surf, z_surf);
 
     sprayBotToNeutralPath = jtraj(qSprayStart, qLastSB, steps);
     
@@ -184,13 +184,13 @@ function [] = Main()
 
     %% Wiping of Intersection Points
     % q0 = zeros(1,6);
-    qElbowUp = [0, -pi/3, pi/3, 0, 0, 0];
+    qElbowUp = [0, -pi/3, pi/3, 0, 0, 0]
     armToElbowUp = jtraj(qInitial, qElbowUp, steps/2); % Moving arm to an elbow up configuration stops arm from colliding with table.
     
     for i = 1:length(armToElbowUp)
         if isStopped == false
             URrobot.model.animate(armToElbowUp(i,:))
-            disp(armToElbowUp(i,:));
+            % disp(armToElbowUp(i,:));
             URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
             URGripper1.model.animate([0,0]);
             URGripper2.model.base = URrobot.model.fkine(armToElbowUp(i,:));
@@ -204,12 +204,12 @@ function [] = Main()
         end
     end
 
-    qCloth = URrobot.model.ikine(clothObj.clothModel{1}.base);
+    qCloth = URrobot.model.ikine(clothObj.clothModel{1}.base)
     armToWipe = jtraj(qElbowUp, qCloth, steps);
     for i = 1:length(armToWipe)
         if isStopped == false
             URrobot.model.animate(armToWipe(i,:));
-            disp(armToWipe(i,:));
+            % disp(armToWipe(i,:));
             URGripper1.model.base = URrobot.model.fkine(armToWipe(i,:));
             URGripper1.model.animate([0,0]);
             URGripper2.model.base = URrobot.model.fkine(armToWipe(i,:));
@@ -228,11 +228,13 @@ function [] = Main()
     
     for i = 1:length(intersectionPoints)
         armToIntersectionPoint = jtraj(q0, URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2), qIntersectionGuess), steps);
+        % print q goal
+        disp(['Goal q for point ' num2str(i) ': ' num2str(URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2)))]);
             
             for j = 1:length(armToIntersectionPoint)
                 if isStopped == false
                     URrobot.model.animate(armToIntersectionPoint(j,:));
-                    disp(armToIntersectionPoint(j,:));
+                    % disp(armToIntersectionPoint(j,:));
                     URGripper1.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
                     URGripper1.model.animate([0,0]);
                     URGripper2.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
@@ -247,9 +249,10 @@ function [] = Main()
                     end
                 end
             end
-        delete(intersectionPoints_h{i});
+        delete(intersectionPoints_h{i})
         q0 = armToIntersectionPoint(end,:);
     end
+    intersectionPoints = {};
 
     qNeutral = [0, -pi/3, pi/2, -2*pi/3, 0, 0];
     armToNeutral = jtraj(q0, qNeutral, steps);
@@ -257,7 +260,7 @@ function [] = Main()
     for i = 1:length(armToNeutral)
         if isStopped == false
             URrobot.model.animate(armToNeutral(i,:));
-            disp(armToNeutral(i,:));
+            % disp(armToNeutral(i,:));
             URGripper1.model.base = URrobot.model.fkine(armToNeutral(i,:));
             URGripper1.model.animate([0,0]);
             URGripper2.model.base = URrobot.model.fkine(armToNeutral(i,:));
