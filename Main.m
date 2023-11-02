@@ -158,6 +158,16 @@ function [] = Main()
         end 
     end
     
+    %% Grip Nozzle
+    qMatrixSBGripper1 = SBGripper1.GetCloseqMatrix(SBGripper1, steps);
+    qMatrixSBGripper2 = SBGripper2.GetCloseqMatrix(SBGripper2, steps);
+
+    for i = 1:length(qMatrixSBGripper1)
+        SBGripper1.model.animate(qMatrixSBGripper1(i,:));
+        SBGripper2.model.animate(qMatrixSBGripper2(i,:));
+    end
+    
+    %% Spray on Surface
     [intersectionPoints, intersectionPoints_h] = sprayBottle(nozzleObj, sprayBotEndEffectorTr, x_surf, y_surf, z_surf);
 
     sprayBotToNeutralPath = jtraj(qSprayStart, qLastSB, steps);
@@ -166,9 +176,9 @@ function [] = Main()
         if isStopped == false
             SBrobot.model.animate(sprayBotToNeutralPath(i, :));
             SBGripper1.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
-            SBGripper1.model.animate([0,0]);
+            SBGripper1.model.animate(qMatrixSBGripper1(end,:));
             SBGripper2.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
-            SBGripper2.model.animate([0,0]);
+            SBGripper2.model.animate(qMatrixSBGripper2(end,:));
             nozzleObj.nozzleModel{1}.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
             nozzleObj.nozzleModel{1}.animate(0);
             pause(0);
@@ -181,7 +191,6 @@ function [] = Main()
     end
     
    
-
     %% Wiping of Intersection Points
     % q0 = zeros(1,6);
     qElbowUp = [0, -pi/3, pi/3, 0, 0, 0]
@@ -224,7 +233,18 @@ function [] = Main()
     end
 
     q0 = armToWipe(end,:); % Reinitialise Starting Position.   
-    qIntersectionGuess = [-83*pi/180, -140*pi/180, 2*pi/3, -150*pi/180, -pi/2, 0];
+
+    %% Grip Cloth
+    qMatrixURGripper1 = URGripper1.GetCloseqMatrix(URGripper1, steps);
+    qMatrixURGripper2 = URGripper2.GetCloseqMatrix(URGripper2, steps);
+
+    for i = 1:length(qMatrixSBGripper1)
+        URGripper1.model.animate(qMatrixURGripper1(i,:));
+        URGripper2.model.animate(qMatrixURGripper2(i,:));
+    end
+    
+    %% Move Wiper to Intersection Points
+    qIntersectionGuess = [-pi/2, -140*pi/180, 2*pi/3, -150*pi/180, -pi/2, 0];
     
     for i = 1:length(intersectionPoints)
         armToIntersectionPoint = jtraj(q0, URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2), qIntersectionGuess), steps);
@@ -236,9 +256,9 @@ function [] = Main()
                     URrobot.model.animate(armToIntersectionPoint(j,:));
                     % disp(armToIntersectionPoint(j,:));
                     URGripper1.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
-                    URGripper1.model.animate([0,0]);
+                    URGripper1.model.animate(qMatrixURGripper1(end,:));
                     URGripper2.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
-                    URGripper2.model.animate([0,0]);
+                    URGripper2.model.animate(qMatrixURGripper2(end,:));
                     clothObj.clothModel{1}.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
                     clothObj.clothModel{1}.animate(0);
                     pause(0);
@@ -249,22 +269,23 @@ function [] = Main()
                     end
                 end
             end
-        delete(intersectionPoints_h{i})
+        delete(intersectionPoints_h{i});
         q0 = armToIntersectionPoint(end,:);
     end
     intersectionPoints = {};
 
-    qNeutral = [0, -pi/3, pi/2, -2*pi/3, 0, 0];
+    %% Move Arm to Neutral Position
+    qNeutral = [-2*pi, -pi/3, pi/2, -2*pi/3, 0, 0];
     armToNeutral = jtraj(q0, qNeutral, steps);
-
+    
     for i = 1:length(armToNeutral)
         if isStopped == false
             URrobot.model.animate(armToNeutral(i,:));
             % disp(armToNeutral(i,:));
             URGripper1.model.base = URrobot.model.fkine(armToNeutral(i,:));
-            URGripper1.model.animate([0,0]);
+            URGripper1.model.animate(qMatrixURGripper1(end,:));
             URGripper2.model.base = URrobot.model.fkine(armToNeutral(i,:));
-            URGripper2.model.animate([0,0]);
+            URGripper2.model.animate(qMatrixURGripper2(end,:));
             clothObj.clothModel{1}.base = URrobot.model.fkine(armToNeutral(i,:));
             clothObj.clothModel{1}.animate(0);
             pause(0);
