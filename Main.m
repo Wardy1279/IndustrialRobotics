@@ -1,4 +1,4 @@
-function [] = Main()
+function [] = MainCollision()
 %MAIN Summary of this function goes here
 %% Runs the Simulation.
     clc
@@ -14,7 +14,7 @@ function [] = Main()
     settingsLightCurtainEnable = false;
 
     % Teach UI
-    settingsTeach = true;
+    settingsTeach = false;
 
     %% Creates environment, returns interactive objects and robots
     %% (including grippers).
@@ -89,16 +89,24 @@ function [] = Main()
 
     qInitial = zeros(1,6);
     armToElbowUp = jtraj(qLastUR, qInitial, steps); % Moving arm to an elbow up configuration stops arm from colliding with table.
+    qMatrixURGripper1 = URGripper1.GetOpenqMatrix(URGripper1, steps);
+    qMatrixURGripper2 = URGripper2.GetOpenqMatrix(URGripper2, steps);
     
+    intersection = collisionDetection(URrobot,armToElbowUp);
+
     for i = 1:length(armToElbowUp)
-        if isStopped == false
+        if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToElbowUp(i,:))
             URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
-            URGripper1.model.animate([0,0]);
+            URGripper1.model.animate(qMatrixURGripper1(i,:));
             URGripper2.model.base = URrobot.model.fkine(armToElbowUp(i,:));
-            URGripper2.model.animate([0,0]);
+            URGripper2.model.animate(qMatrixURGripper2(i,:));
             pause(0);
         else
+            if intersection == true
+                disp("Collision Detected. Operation Paused")
+                pause;
+            end
             while isStopped == true
                 pause(1)
                 % Damn, penalty time
@@ -111,11 +119,16 @@ function [] = Main()
 
     neutralSprayBotTr = SBrobot.model.fkine(qLastSB).T; % Neutral Spray Bot Position
     sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T; % Final Transform of End Effector.
+    qMatrixSBGripper1 = SBGripper1.GetOpenqMatrix(SBGripper1, steps);
+    qMatrixSBGripper2 = SBGripper2.GetOpenqMatrix(SBGripper2, steps);
     SBrobot.model.delay = 0;
     
     initialSprayBotToNozzle = jtraj(qLastSB, qNozzle, steps);
+
+    intersection = collisionDetection(SBrobot,initialSprayBotToNozzle);
+
     for i = 1:length(initialSprayBotToNozzle)
-        if isStopped == false
+        if (isStopped == false) && (intersection == false)
             if settingsLightCurtainEnable
                 try
                     persons.personModel{1}.base = SE3(eul2rotm([0,0,0]), [-3+i/100, -0.5, 0]);
@@ -124,11 +137,15 @@ function [] = Main()
             end
             SBrobot.model.animate(initialSprayBotToNozzle(i,:));
             SBGripper1.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
-            SBGripper1.model.animate([0,0]);
+            SBGripper1.model.animate(qMatrixSBGripper1(i,:));
             SBGripper2.model.base = SBrobot.model.fkine(initialSprayBotToNozzle(i,:));
-            SBGripper2.model.animate([0,0]);
+            SBGripper2.model.animate(qMatrixSBGripper2(i,:));
             pause(0);
         else
+            if intersection == true
+                disp("Collision Detected. Operation Paused")
+                pause;
+            end
             while isStopped == true
                 pause(1)
                 try
@@ -140,8 +157,22 @@ function [] = Main()
     end
     
     nozzleToSprayPosition = jtraj(qNozzle, qSprayStart, steps);
+
+    intersection = collisionDetection(SBrobot,nozzleToSprayPosition);
+
+    %% Grip Nozzle
+    qMatrixSBGripper1 = SBGripper1.GetCloseqMatrix(SBGripper1, steps);
+    qMatrixSBGripper2 = SBGripper2.GetCloseqMatrix(SBGripper2, steps);
+
+    for i = 1:steps
+        SBGripper1.model.animate(qMatrixSBGripper1(i,:));
+        SBGripper2.model.animate(qMatrixSBGripper2(i,:));
+        pause(0);
+    end
+    %%
+
     for i = 1:length(nozzleToSprayPosition)
-        if isStopped == false
+        if (isStopped == false) && (intersection == false)
             SBrobot.model.animate(nozzleToSprayPosition(i,:));
             SBGripper1.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
             SBGripper1.model.animate([0,0]);
@@ -151,20 +182,15 @@ function [] = Main()
             nozzleObj.nozzleModel{1}.animate(0);
             pause(0);
         else
-           while isStopped == true
+            if intersection == true
+                disp("Collision Detected. Operation Paused")
+                pause;  
+            end
+            while isStopped == true
                 pause(1)
                 % Damn, penalty time
             end
         end 
-    end
-    
-    %% Grip Nozzle
-    qMatrixSBGripper1 = SBGripper1.GetCloseqMatrix(SBGripper1, steps);
-    qMatrixSBGripper2 = SBGripper2.GetCloseqMatrix(SBGripper2, steps);
-
-    for i = 1:length(qMatrixSBGripper1)
-        SBGripper1.model.animate(qMatrixSBGripper1(i,:));
-        SBGripper2.model.animate(qMatrixSBGripper2(i,:));
     end
     
     %% Spray on Surface
@@ -172,8 +198,10 @@ function [] = Main()
 
     sprayBotToNeutralPath = jtraj(qSprayStart, qLastSB, steps);
     
+    intersection = collisionDetection(SBrobot,sprayBotToNeutralPath);
+
     for i = 1:length(sprayBotToNeutralPath)
-        if isStopped == false
+        if (isStopped == false) && (intersection == false)
             SBrobot.model.animate(sprayBotToNeutralPath(i, :));
             SBGripper1.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
             SBGripper1.model.animate(qMatrixSBGripper1(end,:));
@@ -183,6 +211,10 @@ function [] = Main()
             nozzleObj.nozzleModel{1}.animate(0);
             pause(0);
         else
+            if intersection == true
+                disp("Collision Detected. Operation Paused")
+                pause;
+            end
             while isStopped == true
                 pause(1)
                 % Damn, penalty time
@@ -196,16 +228,22 @@ function [] = Main()
     qElbowUp = [0, -pi/3, pi/3, 0, 0, 0]
     armToElbowUp = jtraj(qInitial, qElbowUp, steps/2); % Moving arm to an elbow up configuration stops arm from colliding with table.
     
+    intersection = collisionDetection(URrobot,armToElbowUp);
+
     for i = 1:length(armToElbowUp)
-        if isStopped == false
+        if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToElbowUp(i,:))
             % disp(armToElbowUp(i,:));
             URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
-            URGripper1.model.animate([0,0]);
+            URGripper1.model.animate(qMatrixURGripper1(end,:));
             URGripper2.model.base = URrobot.model.fkine(armToElbowUp(i,:));
-            URGripper2.model.animate([0,0]);
+            URGripper2.model.animate(qMatrixURGripper2(end,:));
             pause(0);
         else
+            if intersection == true
+                disp("Collision Detected. Operation Paused")
+                pause;
+            end
             while isStopped == true
                 pause(1)
                 % Damn, penalty time
@@ -215,16 +253,23 @@ function [] = Main()
 
     qCloth = URrobot.model.ikine(clothObj.clothModel{1}.base)
     armToWipe = jtraj(qElbowUp, qCloth, steps);
+
+    intersection = collisionDetection(URrobot,armToWipe);
+
     for i = 1:length(armToWipe)
-        if isStopped == false
+        if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToWipe(i,:));
             % disp(armToWipe(i,:));
             URGripper1.model.base = URrobot.model.fkine(armToWipe(i,:));
-            URGripper1.model.animate([0,0]);
+            URGripper1.model.animate(qMatrixURGripper1(end,:));
             URGripper2.model.base = URrobot.model.fkine(armToWipe(i,:));
-            URGripper2.model.animate([0,0]);
+            URGripper2.model.animate(qMatrixURGripper2(end,:));
             pause(0);
         else
+            if intersection == true
+                disp("Collision Detected. Operation Paused")
+                pause;
+            end
             while isStopped == true
                 pause(1)
                 % Damn, penalty time
@@ -241,6 +286,7 @@ function [] = Main()
     for i = 1:length(qMatrixSBGripper1)
         URGripper1.model.animate(qMatrixURGripper1(i,:));
         URGripper2.model.animate(qMatrixURGripper2(i,:));
+        drawnow();
     end
     
     %% Move Wiper to Intersection Points
@@ -248,11 +294,15 @@ function [] = Main()
     
     for i = 1:length(intersectionPoints)
         armToIntersectionPoint = jtraj(q0, URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2), qIntersectionGuess), steps);
+        
+        % FOR SOME REASON THIS COLLISION DETECTION DOES NOT DETECT THE WALL-CUBE
+        intersection = collisionDetection(URrobot,armToIntersectionPoint);
+        
         % print q goal
         disp(['Goal q for point ' num2str(i) ': ' num2str(URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2)))]);
             
             for j = 1:length(armToIntersectionPoint)
-                if isStopped == false
+                if (isStopped == false) && (intersection == false)
                     URrobot.model.animate(armToIntersectionPoint(j,:));
                     % disp(armToIntersectionPoint(j,:));
                     URGripper1.model.base = URrobot.model.fkine(armToIntersectionPoint(j,:));
@@ -263,6 +313,10 @@ function [] = Main()
                     clothObj.clothModel{1}.animate(0);
                     pause(0);
                 else
+                    if intersection == true
+                        disp("Collision Detected. Operation Paused")
+                        pause;
+                    end
                     while isStopped == true
                         pause(1)
                         % Damn, penalty time
@@ -277,9 +331,11 @@ function [] = Main()
     %% Move Arm to Neutral Position
     qNeutral = [-2*pi, -pi/3, pi/2, -2*pi/3, 0, 0];
     armToNeutral = jtraj(q0, qNeutral, steps);
-    
+
+    intersection = collisionDetection(URrobot,armToNeutral);
+
     for i = 1:length(armToNeutral)
-        if isStopped == false
+        if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToNeutral(i,:));
             % disp(armToNeutral(i,:));
             URGripper1.model.base = URrobot.model.fkine(armToNeutral(i,:));
@@ -290,6 +346,10 @@ function [] = Main()
             clothObj.clothModel{1}.animate(0);
             pause(0);
         else
+            if intersection == true
+                disp("Collision Detected. Operation Paused")
+                pause;
+            end
             while isStopped == true
                 pause(1)
                 % Damn, penalty time
