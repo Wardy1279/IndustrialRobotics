@@ -3,12 +3,12 @@ function [intersection] = collisionDetection(robot, qMatrix)
     
      %% Plotting the Cubes
     % 2.2 and 2.3
-    centerpnt1 = [-0.3,0.8,1];
+    centerpnt1 = [-0.3,1.1,1];
     centerpnt2 = [0,-0.25,-0.01];
     side1 = 1.5;
     side2 = 1;
     q = zeros(1,6);  
-    plotOptions.plotFaces = true;
+    plotOptions.plotFaces = false;
     [vertex1,faces1,faceNormals1] = RectangularPrism(centerpnt1-side1/2, centerpnt1+side1/2,plotOptions);
     [vertex2,faces2,faceNormals2] = RectangularPrism(centerpnt2-side2/2, centerpnt2+side2/2,plotOptions);
     axis equal
