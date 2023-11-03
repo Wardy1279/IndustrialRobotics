@@ -1,4 +1,4 @@
-function [] = MainCollision()
+function [] = Main()
 %MAIN Summary of this function goes here
 %% Runs the Simulation.
     clc
@@ -87,6 +87,7 @@ function [] = MainCollision()
         end
     end
 
+    %% Moving arm to an elbow up configuration stops arm from colliding with table.
     qInitial = zeros(1,6);
     armToElbowUp = jtraj(qLastUR, qInitial, steps); % Moving arm to an elbow up configuration stops arm from colliding with table.
     qMatrixURGripper1 = URGripper1.GetOpenqMatrix(URGripper1, steps);
@@ -169,7 +170,7 @@ function [] = MainCollision()
         SBGripper2.model.animate(qMatrixSBGripper2(i,:));
         pause(0);
     end
-    %%
+    %% Nozzle to Spray Position
 
     for i = 1:length(nozzleToSprayPosition)
         if (isStopped == false) && (intersection == false)
