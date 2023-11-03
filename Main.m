@@ -9,9 +9,11 @@ function [] = Main()
     
     steps = 100;
     
+    %% init Arduino
+    a = arduino();
     %% OPTIONAL SETTINGS
     % Turn on light cutain demonstration
-    settingsLightCurtainEnable = false;
+    settingsLightCurtainEnable = true;
 
     % Teach UI
     settingsTeach = false;
@@ -96,6 +98,10 @@ function [] = Main()
     intersection = collisionDetection(URrobot,armToElbowUp);
 
     for i = 1:length(armToElbowUp)
+        physicalEstop = readDigitalPin(a, 'D8');
+        if physicalEstop == true
+            EStopCallback(1);
+        end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToElbowUp(i,:))
             URGripper1.model.base = URrobot.model.fkine(armToElbowUp(i,:));
@@ -129,6 +135,10 @@ function [] = Main()
     intersection = collisionDetection(SBrobot,initialSprayBotToNozzle);
 
     for i = 1:length(initialSprayBotToNozzle)
+        physicalEstop = readDigitalPin(a, 'D8');
+        if physicalEstop == true
+            EStopCallback(1);
+        end
         if (isStopped == false) && (intersection == false)
             if settingsLightCurtainEnable
                 try
@@ -173,6 +183,10 @@ function [] = Main()
     %% Nozzle to Spray Position
 
     for i = 1:length(nozzleToSprayPosition)
+        physicalEstop = readDigitalPin(a, 'D8');
+        if physicalEstop == true
+            EStopCallback(1);
+        end
         if (isStopped == false) && (intersection == false)
             SBrobot.model.animate(nozzleToSprayPosition(i,:));
             SBGripper1.model.base = SBrobot.model.fkine(nozzleToSprayPosition(i,:));
@@ -202,6 +216,10 @@ function [] = Main()
     intersection = collisionDetection(SBrobot,sprayBotToNeutralPath);
 
     for i = 1:length(sprayBotToNeutralPath)
+        physicalEstop = readDigitalPin(a, 'D8');
+        if physicalEstop == true
+            EStopCallback(1);
+        end
         if (isStopped == false) && (intersection == false)
             SBrobot.model.animate(sprayBotToNeutralPath(i, :));
             SBGripper1.model.base = SBrobot.model.fkine(sprayBotToNeutralPath(i,:));
@@ -232,6 +250,10 @@ function [] = Main()
     intersection = collisionDetection(URrobot,armToElbowUp);
 
     for i = 1:length(armToElbowUp)
+        physicalEstop = readDigitalPin(a, 'D8');
+        if physicalEstop == true
+            EStopCallback(1);
+        end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToElbowUp(i,:))
             % disp(armToElbowUp(i,:));
@@ -258,6 +280,10 @@ function [] = Main()
     intersection = collisionDetection(URrobot,armToWipe);
 
     for i = 1:length(armToWipe)
+        physicalEstop = readDigitalPin(a, 'D8');
+        if physicalEstop == true
+            EStopCallback(1);
+        end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToWipe(i,:));
             % disp(armToWipe(i,:));
@@ -303,6 +329,10 @@ function [] = Main()
         disp(['Goal q for point ' num2str(i) ': ' num2str(URrobot.model.ikcon(SE3(intersectionPoints{i}).T * transl(0,-0.2,0) * trotx(-pi/2)))]);
             
             for j = 1:length(armToIntersectionPoint)
+                physicalEstop = readDigitalPin(a, 'D8');
+                    if physicalEstop == true
+                        EStopCallback(1);
+                    end
                 if (isStopped == false) && (intersection == false)
                     URrobot.model.animate(armToIntersectionPoint(j,:));
                     % disp(armToIntersectionPoint(j,:));
@@ -336,6 +366,10 @@ function [] = Main()
     intersection = collisionDetection(URrobot,armToNeutral);
 
     for i = 1:length(armToNeutral)
+        physicalEstop = readDigitalPin(a, 'D8');
+        if physicalEstop == true
+            EStopCallback(1);
+        end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToNeutral(i,:));
             % disp(armToNeutral(i,:));
