@@ -7,15 +7,18 @@ function [] = Main()
     
     hold on;
     
-    steps = 100;
+    steps = 50;
     
     %% init Arduino
     a = arduino();
+    writeDigitalPin(a, 'D9', 1);
     %% OPTIONAL SETTINGS
     % Turn on light cutain demonstration
-    settingsLightCurtainEnable = true;
+    settingsLightCurtainEnable = false;
 
     % Teach UI
+    % From assignment overview: 2) 'A valid addition is to use a joystick
+    % or gamepad to augment and replace mouse GUI button presses'
     settingsTeach = false;
 
     %% Creates environment, returns interactive objects and robots
@@ -42,13 +45,13 @@ function [] = Main()
     g.ColumnWidth = {'1x','1x','1x'};
     estopButton = uibutton(g, ...
         "Text","Emergency Stop", ...
-        "ButtonPushedFcn", @(src,event) EStopCallback(1));
+        "ButtonPushedFcn", @(src,event) EStopCallback(1, a));
     estopButton.Layout.Row = 2;
     estopButton.Layout.Column = 2;
 
     c = uibutton(g, ...
         "Text","Resume", ...
-        "ButtonPushedFcn", @(src,event) EStopCallback(2));
+        "ButtonPushedFcn", @(src,event) EStopCallback(2, a));
     c.Layout.Row = 2;
     c.Layout.Column = 3;
 
@@ -57,9 +60,6 @@ function [] = Main()
         persons = person(1);
     end
 
-    %% SprayBot Starting Position
-    % qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
-    % SBrobot.model.animate(qSprayStart); % Render Spray bot at initial joint angels.
     %% Render Plane that acts as window pane.
     [x_surf, z_surf] = meshgrid(-1.8:0.2:1.8, 0.5:1.3/18:1.8); % Generate x_surf and z_surf data
     y_surf = zeros(size(x_surf, 1)); % Initialise array of y_surf values same size and x_surf values.
@@ -88,7 +88,11 @@ function [] = Main()
             qLastSB(i) = qLastSB(i) - 2 * pi;
         end
     end
-
+    
+    if settingsLightCurtainEnable == true
+        persons.personModel{1}.base = SE3(eul2rotm([0,0,0]), [-3, -0.5, 0]);
+        persons.personModel{1}.animate(0);
+    end
     %% Moving arm to an elbow up configuration stops arm from colliding with table.
     qInitial = zeros(1,6);
     armToElbowUp = jtraj(qLastUR, qInitial, steps); % Moving arm to an elbow up configuration stops arm from colliding with table.
@@ -100,7 +104,7 @@ function [] = Main()
     for i = 1:length(armToElbowUp)
         physicalEstop = readDigitalPin(a, 'D8');
         if physicalEstop == true
-            EStopCallback(1);
+            EStopCallback(1, a);
         end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToElbowUp(i,:))
@@ -124,7 +128,7 @@ function [] = Main()
     qNozzle = SBrobot.model.ikine(nozzleObj.nozzleModel{1}.base);
     qSprayStart = [-145 * pi/180, 0, -14 * pi/180, 93.6 * pi/180, -80 * pi/180 , -pi]; % Spray Bot initial Joint Angles.
 
-    neutralSprayBotTr = SBrobot.model.fkine(qLastSB).T; % Neutral Spray Bot Position
+    % neutralSprayBotTr = SBrobot.model.fkine(qLastSB).T; % Neutral Spray Bot Position
     sprayBotEndEffectorTr = SBrobot.model.fkine(qSprayStart).T; % Final Transform of End Effector.
     qMatrixSBGripper1 = SBGripper1.GetOpenqMatrix(SBGripper1, steps);
     qMatrixSBGripper2 = SBGripper2.GetOpenqMatrix(SBGripper2, steps);
@@ -137,13 +141,16 @@ function [] = Main()
     for i = 1:length(initialSprayBotToNozzle)
         physicalEstop = readDigitalPin(a, 'D8');
         if physicalEstop == true
-            EStopCallback(1);
+            EStopCallback(1, a);
         end
         if (isStopped == false) && (intersection == false)
             if settingsLightCurtainEnable
                 try
-                    persons.personModel{1}.base = SE3(eul2rotm([0,0,0]), [-3+i/100, -0.5, 0]);
+                    persons.personModel{1}.base = SE3(eul2rotm([0,0,0]), [-3+i/35, -0.5, 0]);
                     isStopped = UpdateCollisions(persons, cubePoints);
+                    if isStopped == true
+                        writeDigitalPin(a, 'D9', 0);
+                    end
                 end
             end
             SBrobot.model.animate(initialSprayBotToNozzle(i,:));
@@ -185,7 +192,7 @@ function [] = Main()
     for i = 1:length(nozzleToSprayPosition)
         physicalEstop = readDigitalPin(a, 'D8');
         if physicalEstop == true
-            EStopCallback(1);
+            EStopCallback(1, a);
         end
         if (isStopped == false) && (intersection == false)
             SBrobot.model.animate(nozzleToSprayPosition(i,:));
@@ -211,14 +218,14 @@ function [] = Main()
     %% Spray on Surface
     [intersectionPoints, intersectionPoints_h] = sprayBottle(nozzleObj, sprayBotEndEffectorTr, x_surf, y_surf, z_surf);
 
-    sprayBotToNeutralPath = jtraj(qSprayStart, qLastSB, steps);
+    sprayBotToNeutralPath = jtraj(qSprayStart, zeros(1,6), steps);
     
     intersection = collisionDetection(SBrobot,sprayBotToNeutralPath);
 
     for i = 1:length(sprayBotToNeutralPath)
         physicalEstop = readDigitalPin(a, 'D8');
         if physicalEstop == true
-            EStopCallback(1);
+            EStopCallback(1, a);
         end
         if (isStopped == false) && (intersection == false)
             SBrobot.model.animate(sprayBotToNeutralPath(i, :));
@@ -252,7 +259,7 @@ function [] = Main()
     for i = 1:length(armToElbowUp)
         physicalEstop = readDigitalPin(a, 'D8');
         if physicalEstop == true
-            EStopCallback(1);
+            EStopCallback(1, a);
         end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToElbowUp(i,:))
@@ -282,7 +289,7 @@ function [] = Main()
     for i = 1:length(armToWipe)
         physicalEstop = readDigitalPin(a, 'D8');
         if physicalEstop == true
-            EStopCallback(1);
+            EStopCallback(1, a);
         end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToWipe(i,:));
@@ -331,7 +338,7 @@ function [] = Main()
             for j = 1:length(armToIntersectionPoint)
                 physicalEstop = readDigitalPin(a, 'D8');
                     if physicalEstop == true
-                        EStopCallback(1);
+                        EStopCallback(1, a);
                     end
                 if (isStopped == false) && (intersection == false)
                     URrobot.model.animate(armToIntersectionPoint(j,:));
@@ -368,7 +375,7 @@ function [] = Main()
     for i = 1:length(armToNeutral)
         physicalEstop = readDigitalPin(a, 'D8');
         if physicalEstop == true
-            EStopCallback(1);
+            EStopCallback(1, a);
         end
         if (isStopped == false) && (intersection == false)
             URrobot.model.animate(armToNeutral(i,:));
@@ -396,13 +403,15 @@ function [] = Main()
 end
 
 %% Estop Callback function
-function [] = EStopCallback(selection)
+function [] = EStopCallback(selection, a)
 global isStopped;
 if selection == 1
     disp('ESTOP PRESSED');
     isStopped = true;
+    writeDigitalPin(a, 'D9', 0);
 else
     disp('RESUME PRESSED');
     isStopped = false;
+    writeDigitalPin(a, 'D9', 1);
 end
 end

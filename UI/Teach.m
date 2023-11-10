@@ -51,13 +51,15 @@ function [qLastUR, qLastSB] = Teach(URrobot, SBrobot, URGripper1, URGripper2, SB
             
             if inputRobotSelection == 1
                 try
-                    qLastUR = URrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1]);
+                    qLastUR = URrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1], 'forceSoln');
                     URrobot.model.animate(qLastUR);
-                    disp(URrobot.model.fkine(URrobot.model.getpos()).T);
+                    disp(URrobot.model.fkine(URrobot.model.getpos()).T); 
                 end
+                drawnow();
+                robotSelection = 0;
             elseif inputRobotSelection == 2
                 try
-                    qLastSB = SBrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1]);
+                    qLastSB = SBrobot.model.ikine([1,0,0,inputX;0,1,0,inputY;0,0,1,inputZ;0,0,0,1], 'forceSoln');
                     SBrobot.model.animate(qLastSB);
                     disp(SBrobot.model.fkine(SBrobot.model.getpos()).T);
                 end

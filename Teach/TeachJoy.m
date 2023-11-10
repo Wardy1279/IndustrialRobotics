@@ -22,11 +22,9 @@ while( toc < duration)
     % read joystick
     [axes, buttons, povs] = read(joy);
        
-    % -------------------------------------------------------------
-    % YOUR CODE GOES HERE
     % 1 - turn joystick input into an end-effector velocity command
-    Kv = 0.05; % linear velocity gain
-    Kw = 0.05; % angular velocity gain
+    Kv = 0.4; % linear velocity gain
+    Kw = 1.0; % angular velocity gain
     
     vx = Kv*axes(1);
     vy = Kv*axes(2);
@@ -37,10 +35,14 @@ while( toc < duration)
     wz = Kw*(buttons(6)-buttons(8));
     
     dx = [vx;vy;vz;wx;wy;wz]; % combined velocity vector
-    
+
     % 2 - use J inverse to calculate joint velocity
     J = robot.model.jacob0(q);
-    dq = pinv(J)*dx;
+    % Implement least damped squares
+    lambda = 0.5;
+    Jinv_dls = inv((J'*J)+lambda^2*eye(6))*J';
+    % RMRS
+    dq = Jinv_dls*dx;
     
     % 3 - apply joint velocity to step robot joint angles 
     q = q + dq'*dt;
@@ -63,22 +65,18 @@ while( toc < duration)
     end
 end
 
-% Define the range -2pi to 2pi
-% min_angle = -2 * pi;
-% max_angle = 2 * pi;
-
-min_angle = -pi;
-max_angle = pi;
-
-% Wrap joint angles within the range
-for i = 1:numel(robot)
-    while robot(i) < min_angle
-        robot(i) = robot(i) + pi;
-    end
-    while robot(i) > max_angle
-        robot(i) = robot(i) - pi;
-    end
-end
+% min_angle = -pi;
+% max_angle = pi;
+% 
+% % Wrap joint angles within the range
+% for i = 1:numel(robot)
+%     while robot(i) < min_angle
+%         robot(i) = robot(i) + pi;
+%     end
+%     while robot(i) > max_angle
+%         robot(i) = robot(i) - pi;
+%     end
+% end
 
 qLast = robot.model.getpos();
 end
